@@ -1,8 +1,9 @@
-package jobsd
+package jobspec
 
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/simpleframeworks/logc"
@@ -14,23 +15,23 @@ import (
 )
 
 // testSetup for testing
-func testSetup(logLvl logrus.Level) *JobsD {
+func testSetup(logLvl logrus.Level) *Instance {
 
 	logger := testSetupLogging(logLvl)
 
 	db := testSetupDB(logger)
 
 	if dbToUse() == "" || dbToUse() == "sqllite" {
-		return New(db).Logger(logger)
+		return New(db).SetLogger(logger)
 	}
 
-	// Auto migrations are disabled for MySQL and PostgreSQL as structure should be
-	return New(db).AutoMigration(false).Logger(logger)
+	// DB migrations / setup are disabled for MySQL and PostgreSQL as structure should be there
+	return New(db).SetMigration(false).SetLogger(logger)
 }
 
-// testTeardown JobsD after testing
-func testTeardown(j *JobsD) {
-	err := j.Down()
+// testTeardown Instance after testing
+func testTeardown(j *Instance) {
+	err := j.Stop()
 	testPanicErr(err)
 
 	sqlDB, err := j.GetDB().DB()
@@ -140,4 +141,13 @@ func testSetupMySQL(logger logc.Logger) *gorm.DB {
 	// sqlDB.SetMaxOpenConns(1)
 
 	return db
+}
+
+// testFuncName Get the name of the running function
+func testFuncName() string {
+	pc := make([]uintptr, 1)
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	sl := strings.Split(f.Name(), "/")
+	return sl[len(sl)-1]
 }
